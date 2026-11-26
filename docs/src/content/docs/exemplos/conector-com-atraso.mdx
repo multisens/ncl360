@@ -1,0 +1,33 @@
+---
+title: Conector com atraso
+description: Um conector próprio, declarado no cabeçalho, que inicia uma mídia algum tempo depois de outra começar.
+sidebar:
+  order: 4
+---
+
+import Exemplo from '../../../components/exemplo.astro';
+
+Os papéis predefinidos não têm parâmetros. Para iniciar uma mídia com atraso, declare um
+`<causalConnector>` com o atraso como parâmetro e use-o no elo pelo atributo `xconnector`.
+
+<Exemplo arquivo="conector-com-atraso.ncl360" marcar="10-14,23-28" />
+
+## O que cada parte faz
+
+- **O conector** `onBeginStartDelay` tem um parâmetro, `atraso`. A condição é o papel `onBegin`; a ação,
+  o papel `start` com `delay="$atraso"`. `max="unbounded"` deixa o elo ligar o papel `start` a quantas
+  mídias quiser.
+- **O elo** `lPainel` usa o conector e dá o valor do atraso no `<bindParam>` do bind de ação. Para um
+  valor válido para todos os binds do elo, use `<linkParam>` logo no início do `<link>`.
+
+O `<causalConnector>` segue a definição do NCL 4.0: qualquer conector válido no NCL 4.0 é aceito aqui.
+
+:::caution
+O `<bind>` não aceita um atributo `delay`. Escrever `<bind component="painel" role="start" delay="5s"/>`
+faz o documento falhar na validação.
+:::
+
+## Referências
+
+- ABNT NBR 25608 — TV 3.0 — Application coding, Seção A.3.8 (NCL Linking API), Seção A.3.9 (NCL
+  Connectors API) e Seção A.3.21.4.

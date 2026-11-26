@@ -1,0 +1,53 @@
+---
+title: Mídias no espaço
+description: Imagens e vídeos 2D posicionados em volta do usuário e sincronizados com trechos do vídeo 360°.
+sidebar:
+  order: 2
+---
+
+import Exemplo from '../../../components/exemplo.astro';
+import Cena360 from '../../../components/cena-360.astro';
+
+Sobre o vídeo 360°, a cena coloca um painel de vídeo 2D, duas fotos que se alternam conforme o trecho do
+vídeo e uma marca que acompanha o olhar do usuário.
+
+## As regiões no espaço
+
+Cada `<region>` é um ponto numa esfera em volta do usuário, dado por dois ângulos e uma distância:
+
+- `polar` é a altura acima do horizonte: `0d` na altura dos olhos, positivo para cima, `90d` acima da
+  cabeça, negativo para baixo.
+- `azimuthal` é o giro horizontal: `0d` à frente, positivo para a direita, `180d` atrás, negativo para a
+  esquerda.
+- `radius` é a distância até o usuário, em metros. O objeto fica de frente para o usuário.
+
+Com `pin="camera"`, os ângulos são contados a partir de onde o usuário está olhando, e não da frente
+da cena: a mídia fica sempre no mesmo ponto do campo de visão.
+
+<Cena360 arquivo="midias-no-espaco.ncl360" />
+
+:::note
+A norma define as coordenadas só como polares em relação à posição inicial do usuário. O sentido de
+cada ângulo descrito aqui é o do exibidor Guaraná.
+:::
+
+## O código
+
+<Exemplo arquivo="midias-no-espaco.ncl360" marcar="5-7,18-21" />
+
+### O que cada parte faz
+
+- **Regiões.** `rgPainel` e `rgFoto` ficam fixas no ambiente (`pin` omitido vale `environment`).
+  `rgMarca` usa `pin="camera"`: a marca fica no canto inferior direito do campo de visão e acompanha o
+  movimento da cabeça. `zIndex="1"` põe a foto à frente de objetos sobrepostos.
+- **Descritores.** `dsPainel` tira o som do vídeo 2D (`volume="0"`), para não competir com o vídeo 360°.
+  `dsMarca` limita a marca a 20 segundos (`dur="20"`). As duas fotos compartilham `dsFoto` e, portanto,
+  a mesma região.
+- **Âncoras.** `trecho1` e `trecho2` marcam intervalos do vídeo 360°.
+- **Elos.** Cada foto começa no `onBegin` do seu trecho e termina no `onEnd`. O elo `lPainel` inicia o
+  painel junto com o vídeo. Todos usam só papéis predefinidos, por isso não têm `xconnector`.
+
+## Referências
+
+- ABNT NBR 25608 — TV 3.0 — Application coding, Seção A.3.21.4.
+- Exibidor Guaraná (MultiSenS), posicionamento das mídias na cena (`Player.SetPosition`).

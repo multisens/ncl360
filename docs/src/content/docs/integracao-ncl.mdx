@@ -1,0 +1,67 @@
+---
+title: Cena numa aplicação da TV
+description: Como uma aplicação Ginga-NCL da TV 3.0 inclui uma cena NCL360, controla seus elementos e reage ao que acontece no óculos.
+---
+
+import Exemplo from '../../components/exemplo.astro';
+import TvOculos from '../../components/tv-oculos.astro';
+
+Uma cena NCL360 não roda sozinha: ela faz parte de uma aplicação Ginga-NCL da TV. A aplicação trata a
+cena como uma mídia, que o Ginga envia a um exibidor num óculos de realidade virtual. Os dois lados se
+comunicam pelas âncoras dessa mídia.
+
+## A cena como mídia
+
+Na aplicação da TV, a cena é um `<media>` com `type="application/x-ncl360"`, ou com `src` terminado em
+`.ncl360`:
+
+```xml
+<media id="cena" type="application/x-ncl360" src="olhar-para-revelar.ncl360">
+    <area id="aCartao" label="cartao"/>
+</media>
+```
+
+Esse tipo de mídia é apresentado num dispositivo remoto da classe `ncl-360-vr`, sem que a aplicação
+precise dizer isso. Escrever a propriedade `device` explicitamente dá o mesmo resultado:
+
+```xml
+<media id="cena" type="application/x-ncl360" src="olhar-para-revelar.ncl360">
+    <property name="device" value="ncl-360-vr"/>
+    <area id="aCartao" label="cartao"/>
+</media>
+```
+
+## Âncoras ligam a TV à cena
+
+A aplicação declara uma `<area>` para cada elemento da cena que quer controlar ou observar. O `label`
+da âncora é o `id` do elemento no documento NCL360 — no exemplo, a mídia `cartao` da cena.
+
+- **Da TV para o óculos:** uma ação da aplicação sobre a âncora (`start`, `stop`, `pause`...) é
+  executada no elemento correspondente da cena.
+- **Do óculos para a TV:** quando o elemento muda de estado na cena — começa, termina, entra no campo
+  de visão —, o exibidor avisa o Ginga, que atualiza o estado da âncora. Elos da aplicação podem
+  reagir a essa mudança como reagiriam a qualquer outra âncora.
+
+A figura abaixo usa a aplicação e a cena do [exemplo](#exemplo): a âncora `aCartao` da TV corresponde à
+mídia `cartao` da cena.
+
+<TvOculos />
+
+## Exemplo
+
+A aplicação abaixo apresenta a cena [Olhar para revelar](/ncl360/exemplos/olhar-para-revelar/). Quando o
+usuário olha para a marca, a cena abre um cartão; a aplicação percebe pela âncora `aCartao` e mostra um
+aviso na TV enquanto o cartão está aberto.
+
+<Exemplo arquivo="aplicacao-tv.ncl" marcar="28-30,35-42" />
+
+:::note
+Este arquivo é um documento NCL 4.0, não NCL360: ele segue o perfil MainDTV e não é validado pelos
+schemas deste site.
+:::
+
+## Referências
+
+- ABNT NBR 25608 — TV 3.0 — Application coding, Seção 9.2 (NCL 360° VR Presentation Engine), Seção
+  A.3.3 (namespace do perfil MainDTV), Seção A.3.21.2 (classe de dispositivo `ncl-360-vr`) e Seção
+  A.3.21.3 (extensão NCL para cenas 360°).

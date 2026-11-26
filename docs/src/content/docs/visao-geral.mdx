@@ -1,0 +1,103 @@
+---
+title: Visão geral
+description: A estrutura de um documento NCL360 — cabeçalho, corpo, regiões, descritores, mídias e elos.
+---
+
+Uma cena 360° coloca o usuário no centro de uma esfera. Em volta dele há um vídeo 360°; dentro da
+esfera, em posições escolhidas, ficam imagens e vídeos 2D, objetos 3D e fontes de áudio 3D. O
+documento NCL360 diz **o que** compõe a cena, **onde** e **como** cada parte é apresentada e **quando**
+cada uma começa e termina.
+
+## Estrutura do documento
+
+```text
+ncl360                   elemento raiz, com id
+├── head
+│   ├── region*          onde apresentar
+│   ├── descriptor+      como apresentar
+│   └── causalConnector* relações genéricas
+└── body
+    ├── port*            o que começa com a cena
+    ├── media+           o conteúdo da cena
+    │   ├── area*        trechos no tempo
+    │   └── property*    dados da mídia
+    └── link*            relações entre mídias
+        └── bind         quem participa (dois ou mais)
+```
+
+`*` indica zero ou mais; `+`, um ou mais. A ordem dos filhos é fixa: no `<head>`, regiões, depois
+descritores, depois conectores; no `<body>`, portas, depois mídias, depois elos. O elemento raiz declara o
+namespace do perfil:
+
+```xml
+<ncl360 id="minhaCena" xmlns="http://www.ncl.org.br/NCL360/NCL360Profile">
+```
+
+## Onde: regiões
+
+Um `<region>` marca uma posição no espaço em coordenadas polares em relação à posição inicial do
+usuário: dois ângulos (`polar` e `azimuthal`, em graus, como `10d`) e a distância (`radius`, em
+metros, como `6m`). `width` e `height` dão o tamanho do objeto, também em metros. `zIndex` ordena
+objetos sobrepostos.
+
+`pin` decide o que acontece quando o usuário vira a cabeça: com `environment` (o padrão), o objeto
+fica no lugar; com `camera`, ele acompanha o olhar.
+
+```xml
+<region id="rgPainel" polar="15d" azimuthal="-105d" width="3.2m" height="2m" radius="8m"/>
+```
+
+## Como: descritores
+
+Toda mídia aponta para um `<descriptor>`, que diz em que região ela aparece e com que duração
+(`dur`, em segundos), volume (`volume`, de 0 a 1) e tipo de som (`soundType`, `2D` ou `3D`).
+
+O vídeo 360° não ocupa uma região: ocupa o ambiente inteiro. Para isso o descritor usa o
+identificador predefinido `default.sky` e diz a projeção do vídeo em `projection`:
+
+```xml
+<descriptor id="dsCeu" region="default.sky" projection="equirectangular" volume="1"/>
+```
+
+As projeções aceitas estão em [Tipos e valores](/ncl360/referencia/tipos/#projectiontype).
+
+## O quê: mídias
+
+Cada `<media>` é um objeto da cena, com o conteúdo em `src` e a apresentação em `descriptor`. Dentro
+dela, `<area>` marca um trecho no tempo (`begin` e `end`, como `30s`), que serve para sincronizar
+outras mídias com ele, e `<property>` guarda um dado da apresentação.
+
+```xml
+<media id="video360" src="media/palacio360.mp4" descriptor="dsCeu">
+    <area id="trecho1" begin="30s" end="90s"/>
+</media>
+```
+
+## Quando: portas e elos
+
+Os `<port>` dizem quais mídias começam junto com a cena. O resto começa e termina por **elos**: um
+`<link>` liga uma condição (algo que acontece com uma mídia ou com uma âncora dela) a uma ou mais
+ações sobre outras mídias. Cada participante é um `<bind>`, com o papel em `role`, a mídia em
+`component` e, se for o caso, a âncora em `interface`.
+
+```xml
+<link id="lFotoDia">
+    <bind component="video360" interface="trecho1" role="onBegin"/>
+    <bind component="fotoDia" role="start"/>
+</link>
+```
+
+Diferente do NCL, o elo não precisa de conector quando usa só os
+[papéis predefinidos](/ncl360/referencia/tipos/#papéis-predefinidos) — `onBegin`, `onEnd`, `onBeginView`,
+`start`, `stop` e os demais. Dois deles são próprios da realidade virtual: `onBeginView` e
+`onEndView` acontecem quando a mídia entra e sai do campo de visão do usuário.
+
+Para algo além disso, como iniciar uma mídia com atraso, declare um `<causalConnector>` no cabeçalho e
+referencie-o no atributo `xconnector` do elo. O conector segue a definição do NCL 4.0; veja o exemplo
+[Conector com atraso](/ncl360/exemplos/conector-com-atraso/).
+
+## Referências
+
+- ABNT NBR 25608 — TV 3.0 — Application coding, Seção A.3.21.1 (cena 360°), Seção A.3.21.3 (evento
+  de visualização, Tabela A.35) e Seção A.3.21.4 (linguagem NCL360, Tabelas A.36 e A.37).
+- Schemas XML do NCL360 (perfil e módulos Layout, Media e Link), MultiSenS.

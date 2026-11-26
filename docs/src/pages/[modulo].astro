@@ -1,0 +1,90 @@
+---
+// One page per schema, at the last segment of its namespace
+// (/ncl360/NCL360Layout/...): identification, what it declares, its source.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Code } from '@astrojs/starlight/components';
+import { ELEMENTS, MODULES, NCL40_NAMESPACES, type SchemaModule } from '../lib/schemas';
+import { url } from '../lib/inline';
+
+export function getStaticPaths() {
+    return MODULES.map((m) => ({ params: { modulo: m.slug }, props: { mod: m } }));
+}
+
+const { mod } = Astro.props as { mod: SchemaModule };
+const elements = ELEMENTS.filter((e) => e.module === mod.slug);
+const imports = mod.imports.map((i) => {
+    const local = MODULES.find((m) => m.namespace === i.namespace);
+    return {
+        ...i,
+        label: local?.title ?? NCL40_NAMESPACES[i.namespace] ?? i.namespace,
+        slug: local?.slug,
+    };
+});
+const download = url(`/${mod.file}`);
+
+const headings = [
+    { depth: 2, slug: 'identificação', text: 'Identificação' },
+    ...(elements.length ? [{ depth: 2, slug: 'elementos', text: 'Elementos' }] : []),
+    ...(mod.simpleTypes.length ? [{ depth: 2, slug: 'tipos', text: 'Tipos' }] : []),
+    ...(imports.length ? [{ depth: 2, slug: 'importa', text: 'Importa' }] : []),
+    { depth: 2, slug: 'código-fonte', text: 'Código-fonte' },
+];
+---
+
+<StarlightPage frontmatter={{ title: mod.title, description: mod.summary }} headings={headings}>
+    <p>{mod.summary}</p>
+
+    <h2 id="identificação">Identificação</h2>
+    <table class="ncl360-table">
+        <tbody>
+            <tr><td>Namespace</td><td><code>{mod.namespace}</code></td></tr>
+            <tr><td>Prefixo nos schemas</td><td><code>{mod.prefix}</code></td></tr>
+            <tr><td>URI pública</td><td><code>{mod.publicUri}</code></td></tr>
+            <tr><td>Revisão</td><td>{mod.revision}</td></tr>
+            <tr><td>Arquivo</td><td><a href={download} download><code>{mod.file}</code></a></td></tr>
+        </tbody>
+    </table>
+
+    {elements.length > 0 && (
+        <>
+            <h2 id="elementos">Elementos</h2>
+            <p>Elementos cuja definição, tal como o perfil a usa, está neste schema.</p>
+            <ul class="ncl360-index">
+                {elements.map((e) => (
+                    <li><a href={url(`/referencia/elementos/#${e.name}`)}><code>&lt;{e.name}&gt;</code></a></li>
+                ))}
+            </ul>
+        </>
+    )}
+
+    {mod.simpleTypes.length > 0 && (
+        <>
+            <h2 id="tipos">Tipos</h2>
+            <ul class="ncl360-index">
+                {mod.simpleTypes.map((t) => (
+                    <li><a href={url(`/referencia/tipos/#${t.name.toLowerCase()}`)}><code>{t.name}</code></a></li>
+                ))}
+            </ul>
+        </>
+    )}
+
+    {imports.length > 0 && (
+        <>
+            <h2 id="importa">Importa</h2>
+            <table class="ncl360-table">
+                <thead><tr><th>Schema</th><th>Local</th></tr></thead>
+                <tbody>
+                    {imports.map((i) => (
+                        <tr>
+                            <td>{i.slug ? <a href={url(`/${i.slug}/`)}>{i.label}</a> : i.label}</td>
+                            <td><code>{i.schemaLocation}</code></td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </>
+    )}
+
+    <h2 id="código-fonte">Código-fonte</h2>
+    <Code code={mod.source} lang="xml" title={mod.file} />
+</StarlightPage>

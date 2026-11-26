@@ -1,0 +1,102 @@
+---
+// Element reference, generated from the schemas (lib/schemas.ts) and the
+// descriptions in data/elementos.ts.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { REFERENCE } from '../../lib/referencia';
+import { PROFILE, cardinality } from '../../lib/schemas';
+import { inline, url } from '../../lib/inline';
+
+const headings = REFERENCE.flatMap((g) => [
+    { depth: 2, slug: g.id, text: g.titulo },
+    ...g.elementos.map((e) => ({ depth: 3, slug: e.name, text: `<${e.name}>` })),
+]);
+headings.push({ depth: 2, slug: 'referências', text: 'Referências' });
+
+const elementLink = (name: string) => `<a href="#${name}"><code>&lt;${name}&gt;</code></a>`;
+---
+
+<StarlightPage
+    frontmatter={{
+        title: 'Elementos',
+        description: 'Todos os elementos da linguagem NCL360, com atributos, filhos e cardinalidade, lidos dos schemas.',
+    }}
+    headings={headings}
+>
+    <p>Cada elemento que um documento NCL360 pode usar, com seus atributos e filhos. Atributos com <span class="ncl360-required">*</span> são obrigatórios. A estrutura vem dos <a href={url(`/${PROFILE.slug}/`)}>schemas</a>; os elementos que o NCL360 toma do NCL 4.0 indicam a seção da ABNT NBR 25608 que os define.</p>
+
+    <ul class="ncl360-index">
+        {REFERENCE.flatMap((g) => g.elementos).map((e) => <li set:html={elementLink(e.name)} />)}
+    </ul>
+
+    {REFERENCE.map((g) => (
+        <>
+            <h2 id={g.id}>{g.titulo}</h2>
+            <p set:html={inline(g.intro)} />
+            {g.elementos.map((e) => (
+                <section class="ncl360-element">
+                    <h3 id={e.name}><code>&lt;{e.name}&gt;</code></h3>
+                    <div class="ncl360-meta">
+                        <span>Módulo: <a href={url(`/${e.module.slug}/`)}>{e.module.title}</a></span>
+                        {e.parents.length > 0 && (
+                            <span set:html={`Dentro de: ${e.parents.map(elementLink).join(', ')}`} />
+                        )}
+                        {e.ncl40Refs.map((r) => (
+                            <span class="ncl360-tag">NCL 4.0 · ABNT NBR 25608, {r.secao}</span>
+                        ))}
+                    </div>
+                    <p set:html={inline(e.resumo)} />
+
+                    {e.attributes.length > 0 && (
+                        <table class="ncl360-table">
+                            <thead>
+                                <tr><th>Atributo</th><th>Tipo</th><th>Padrão</th><th>Descrição</th></tr>
+                            </thead>
+                            <tbody>
+                                {e.attributes.map((a) => (
+                                    <tr>
+                                        <td>
+                                            <code>{a.name}</code>
+                                            {a.required && <span class="ncl360-required" title="obrigatório">*</span>}
+                                        </td>
+                                        <td>
+                                            {a.typeAnchor
+                                                ? <a href={url(`/referencia/tipos/#${a.typeAnchor}`)}><code>{a.type}</code></a>
+                                                : <code>{a.type}</code>}
+                                        </td>
+                                        <td>{a.default ? <code>{a.default}</code> : '—'}</td>
+                                        <td>
+                                            <Fragment set:html={inline(a.desc)} />
+                                            {a.ncl40 && <> <span class="ncl360-tag">NCL 4.0 · {a.ncl40}</span></>}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {e.children.length > 0 && (
+                        <table class="ncl360-table">
+                            <thead><tr><th>Filho</th><th>Ocorrências</th></tr></thead>
+                            <tbody>
+                                {e.children.map((c) => (
+                                    <tr>
+                                        <td set:html={elementLink(c.name)} />
+                                        <td><code>{cardinality(c)}</code></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {e.notas.map((n) => <p set:html={inline(n)} />)}
+                </section>
+            ))}
+        </>
+    ))}
+
+    <h2 id="referências">Referências</h2>
+    <ul>
+        <li>Schemas XML do NCL360 (perfil e módulos Layout, Media e Link), MultiSenS.</li>
+        <li>ABNT NBR 25608 — TV 3.0 — Application coding, Seções A.3.6, A.3.7, A.3.8, A.3.9 e A.3.21.4.</li>
+    </ul>
+</StarlightPage>

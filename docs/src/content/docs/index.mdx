@@ -1,0 +1,45 @@
+---
+title: NCL360
+description: Linguagem para descrever cenas 360° que aplicações Ginga-NCL da TV 3.0 apresentam em óculos de realidade virtual.
+template: splash
+next: false
+hero:
+  tagline: Linguagem para descrever cenas 360° que aplicações Ginga-NCL da TV 3.0 apresentam em óculos de realidade virtual.
+  actions:
+    - text: Conhecer a linguagem
+      link: /ncl360/visao-geral/
+      icon: right-arrow
+    - text: Consultar os elementos
+      link: /ncl360/referencia/elementos/
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import Exemplo from '../../components/exemplo.astro';
+
+## O que é
+
+Na TV 3.0, uma aplicação Ginga-NCL pode levar parte do seu conteúdo para um óculos de realidade
+virtual: uma cena 360°, com um vídeo em volta do usuário e imagens, vídeos 2D, objetos 3D e áudio 3D
+posicionados no espaço. A cena é descrita num documento NCL360, que a aplicação da TV trata como uma
+mídia e envia ao exibidor do óculos.
+
+O NCL360 usa os conceitos do NCL — regiões, descritores, mídias, âncoras e elos — numa estrutura
+simplificada, de modo que a aplicação da TV e a cena se escrevem do mesmo jeito.
+
+## Uma cena em poucas linhas
+
+<Exemplo arquivo="primeira-cena.ncl360" />
+
+## Por onde seguir
+
+<CardGrid>
+    <LinkCard title="Visão geral" href="/ncl360/visao-geral/" description="A estrutura de um documento NCL360 e o que cada parte faz." />
+    <LinkCard title="Exemplos" href="/ncl360/exemplos/primeira-cena/" description="Cenas completas e válidas, da mais simples a elos com conector próprio." />
+    <LinkCard title="Elementos" href="/ncl360/referencia/elementos/" description="Cada elemento, com atributos, filhos e cardinalidade, lidos dos schemas." />
+    <LinkCard title="Schemas" href="/ncl360/NCL360Profile/" description="O perfil e os módulos Layout, Media e Link, com namespace e código-fonte." />
+</CardGrid>
+
+## Referências
+
+- ABNT NBR 25608 — TV 3.0 — Application coding, Seções 9.2, A.3.21.1 e A.3.21.4.

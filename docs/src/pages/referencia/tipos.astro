@@ -1,0 +1,119 @@
+---
+// Value types of the schemas (simpleType), predefined identifiers and
+// predefined link roles.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { MODULES, formatQName, type SimpleTypeInfo } from '../../lib/schemas';
+import { ACOES, CONDICOES } from '../../data/papeis';
+import { url } from '../../lib/inline';
+
+const types: (SimpleTypeInfo & { prefix: string })[] = MODULES.flatMap((m) =>
+    m.simpleTypes.map((t) => ({ ...t, prefix: m.prefix })),
+);
+
+// What each type is for, in the words of the reference.
+const USO: Record<string, string> = {
+    Degrees: 'Ângulo em graus, terminado em d.',
+    Meters: 'Distância em metros, terminada em m.',
+    PINVAL: 'Se a região fica presa ao ambiente ou à câmera.',
+    SOUNDTYPEVAL: 'Formato do som.',
+    Decimal01: 'Número de 0 a 1.',
+    PROJECTIONTYPE: 'Projeção de uma mídia 360°.',
+};
+
+// Valid and invalid samples of each pattern type, checked below against the
+// pattern itself so that the page cannot show a wrong example.
+const AMOSTRAS: Record<string, { ok: string[]; erro: string[] }> = {
+    Degrees: { ok: ['10d', '-25d', '+180d', '7.5d'], erro: ['10', '10 d', '10deg'] },
+    Meters: { ok: ['2m', '0.13m', '1.5m'], erro: ['2', '2 m', '200cm'] },
+};
+
+for (const t of types) {
+    const pattern = t.facets.find((f) => f.kind === 'pattern');
+    const amostra = AMOSTRAS[t.name];
+    if (!pattern || !amostra) continue;
+    const re = new RegExp(`^(?:${pattern.value})$`);
+    for (const s of amostra.ok) if (!re.test(s)) throw new Error(`${t.name}: "${s}" should match ${pattern.value}`);
+    for (const s of amostra.erro) if (re.test(s)) throw new Error(`${t.name}: "${s}" should not match ${pattern.value}`);
+}
+const semUso = types.filter((t) => !USO[t.name]).map((t) => t.name);
+if (semUso.length) throw new Error(`Value types without description in tipos.astro: ${semUso.join(', ')}`);
+
+const headings = [
+    { depth: 2, slug: 'tipos-dos-schemas', text: 'Tipos dos schemas' },
+    ...types.map((t) => ({ depth: 3, slug: t.name.toLowerCase(), text: t.name })),
+    { depth: 2, slug: 'identificadores-predefinidos', text: 'Identificadores predefinidos' },
+    { depth: 2, slug: 'papéis-predefinidos', text: 'Papéis predefinidos' },
+    { depth: 3, slug: 'condições', text: 'Condições' },
+    { depth: 3, slug: 'ações', text: 'Ações' },
+    { depth: 2, slug: 'referências', text: 'Referências' },
+];
+---
+
+<StarlightPage
+    frontmatter={{
+        title: 'Tipos e valores',
+        description: 'Tipos de valor dos schemas NCL360, identificadores predefinidos e papéis predefinidos dos elos.',
+    }}
+    headings={headings}
+>
+    <h2 id="tipos-dos-schemas">Tipos dos schemas</h2>
+    <p>Os tipos que os módulos declaram para os atributos de <code>&lt;region&gt;</code> e <code>&lt;descriptor&gt;</code>.</p>
+
+    {types.map((t) => {
+        const pattern = t.facets.find((f) => f.kind === 'pattern');
+        const values = t.facets.filter((f) => f.kind === 'enumeration');
+        const min = t.facets.find((f) => f.kind === 'minInclusive');
+        const max = t.facets.find((f) => f.kind === 'maxInclusive');
+        const amostra = AMOSTRAS[t.name];
+        return (
+            <section class="ncl360-element">
+                <h3 id={t.name.toLowerCase()}><code>{t.prefix}:{t.name}</code></h3>
+                <div class="ncl360-meta">
+                    <span>Base: <code>{formatQName(t.base)}</code></span>
+                    <span>Schema: <a href={url(`/${t.module}/`)}>{MODULES.find((m) => m.slug === t.module)!.title}</a></span>
+                </div>
+                <p>{USO[t.name]}</p>
+                {pattern && <p>Padrão: <code>{pattern.value}</code></p>}
+                {amostra && (
+                    <>
+                        <p>Válidos: {amostra.ok.map((s, i) => <>{i > 0 && ', '}<code>{s}</code></>)}.</p>
+                        <p>Inválidos: {amostra.erro.map((s, i) => <>{i > 0 && ', '}<code>{s}</code></>)}.</p>
+                    </>
+                )}
+                {(min || max) && <p>Intervalo: de <code>{min?.value}</code> a <code>{max?.value}</code>, inclusive.</p>}
+                {values.length > 0 && (
+                    <p>Valores: {values.map((v, i) => <>{i > 0 && ', '}<code>{v.value}</code></>)}.</p>
+                )}
+            </section>
+        );
+    })}
+
+    <h2 id="identificadores-predefinidos">Identificadores predefinidos</h2>
+    <p>O atributo <code>region</code> de <code>&lt;descriptor&gt;</code> aceita, além do <code>id</code> de um <code>&lt;region&gt;</code>, identificadores de canais predefinidos:</p>
+    <table class="ncl360-table">
+        <thead><tr><th>Identificador</th><th>Onde a mídia é apresentada</th></tr></thead>
+        <tbody>
+            <tr><td><code>default.sky</code></td><td>No ambiente inteiro, em volta do usuário: use para o vídeo 360° da cena, com <code>projection</code>.</td></tr>
+        </tbody>
+    </table>
+
+    <h2 id="papéis-predefinidos">Papéis predefinidos</h2>
+    <p>Um <code>&lt;link&gt;</code> sem <code>xconnector</code> só pode usar estes papéis no atributo <code>role</code> de seus <code>&lt;bind&gt;</code>. Para outros papéis, ou para parâmetros como atraso, declare um <code>&lt;causalConnector&gt;</code>.</p>
+    <h3 id="condições">Condições</h3>
+    <table class="ncl360-table">
+        <thead><tr><th>Papel</th><th>Quando</th></tr></thead>
+        <tbody>{CONDICOES.map(([r, d]) => <tr><td><code>{r}</code></td><td>{d}</td></tr>)}</tbody>
+    </table>
+    <p><code>onBeginView</code> e <code>onEndView</code> são transições do evento de visualização (<em>view</em>), gerado pelo exibidor no óculos de realidade virtual.</p>
+    <h3 id="ações">Ações</h3>
+    <table class="ncl360-table">
+        <thead><tr><th>Papel</th><th>Efeito</th></tr></thead>
+        <tbody>{ACOES.map(([r, d]) => <tr><td><code>{r}</code></td><td>{d}</td></tr>)}</tbody>
+    </table>
+
+    <h2 id="referências">Referências</h2>
+    <ul>
+        <li>Schemas XML do NCL360, módulo Layout, MultiSenS.</li>
+        <li>ABNT NBR 25608 — TV 3.0 — Application coding, Seção A.3.21.3 (Tabela A.35) e Seção A.3.21.4 (Tabelas A.36 e A.37).</li>
+    </ul>
+</StarlightPage>

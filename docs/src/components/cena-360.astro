@@ -1,0 +1,911 @@
+---
+// Interactive 3D view of the regions of an example scene. The regions are
+// read from the example file itself (lib/cena.ts), so the drawing always
+// matches the code shown on the page.
+//
+// Coordinates follow the Guaraná player (Player.cs): the object is placed
+// `radius` meters ahead of the user and rotated by `polar` (up) and then by
+// `azimuthal` (to the right).
+//
+// With `simular`, the diagram also runs the links of the scene that use only
+// predefined roles, and raises the view event as the Guaraná player does: a
+// media being presented is "in view" while any part of it is inside the
+// user's field of view (Player.CheckView, renderer.isVisible).
+import { lerCena } from '../lib/cena';
+
+interface Props {
+    arquivo: string;
+    simular?: boolean;
+}
+
+const { arquivo, simular = false } = Astro.props;
+const cena = lerCena(arquivo);
+const midias = cena.regioes.flatMap((r) => r.midias);
+---
+
+<figure class="c360" data-cena360={JSON.stringify(cena)} data-simular={simular ? '' : undefined}>
+    <div class="c360-bar" role="group" aria-label="Vista">
+        <button type="button" data-view="fora" aria-pressed="true">De fora</button>
+        <button type="button" data-view="usuario" aria-pressed="false">Do usuário</button>
+        <span class="c360-hint">Arraste para girar · clique numa mídia para ajustá-la</span>
+    </div>
+    <svg class="c360-svg" viewBox="0 0 800 440" role="img" aria-label="Regiões da cena posicionadas em volta do usuário" tabindex="0"></svg>
+    <div class="c360-panel">
+        <div class="c360-list" role="group" aria-label="Regiões">
+            {cena.regioes.map((r, i) => (
+                <button type="button" data-region={r.id} aria-pressed="false" style={`--c360-color: var(--c360-c${i % 5})`}>
+                    <span class="c360-swatch"></span>{r.id}
+                    <small>{r.midias.join(', ')}</small>
+                </button>
+            ))}
+        </div>
+        <div class="c360-edit" hidden>
+            <label>polar <input type="range" min="-90" max="90" step="1" data-attr="polar" /><output></output></label>
+            <label>azimuthal <input type="range" min="-180" max="180" step="1" data-attr="azimuthal" /><output></output></label>
+            <label>radius <input type="range" min="0.5" max="12" step="0.5" data-attr="radius" /><output></output></label>
+            <code class="c360-xml"></code>
+            <button type="button" class="c360-reset">Restaurar valores do exemplo</button>
+        </div>
+    </div>
+    {simular && (
+        <div class="c360-sim">
+            <div class="c360-gazectl">
+                <strong>Direção do olhar</strong>
+                <label>giro <input type="range" min="-180" max="180" step="1" data-gaze="heading" /><output></output></label>
+                <label>altura <input type="range" min="-85" max="85" step="1" data-gaze="pitch" /><output></output></label>
+                <button type="button" class="c360-restart">Reiniciar a cena</button>
+            </div>
+            <table class="c360-states">
+                <thead><tr><th>Mídia</th><th>Apresentação</th><th>Visualização</th></tr></thead>
+                <tbody>
+                    {midias.map((m) => (
+                        <tr data-media={m}><td><code>{m}</code></td><td data-ev="pres"></td><td data-ev="view"></td></tr>
+                    ))}
+                </tbody>
+            </table>
+            <div class="c360-logbox">
+                <strong>O que aconteceu</strong>
+                <ol class="c360-log" aria-live="polite"></ol>
+            </div>
+        </div>
+    )}
+    <figcaption>
+        {simular ? (
+            <>O retângulo claro na vista de fora é o campo de visão do usuário. Gire o olhar até a mídia entrar ou sair dele.</>
+        ) : (
+            <>O usuário está no centro; o vídeo 360° ({cena.ceu.join(', ')}) ocupa a esfera inteira. Na vista do usuário, as mídias com <code>pin="camera"</code> acompanham o olhar.</>
+        )}
+    </figcaption>
+</figure>
+
+<style>
+    .c360 {
+        --c360-c0: #3b82f6;
+        --c360-c1: #f59e0b;
+        --c360-c2: #10b981;
+        --c360-c3: #ec4899;
+        --c360-c4: #8b5cf6;
+        margin: 1.5rem 0;
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .c360-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--sl-color-gray-5);
+    }
+
+    .c360 button {
+        padding: 0.2rem 0.7rem;
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--sl-color-white);
+        font: inherit;
+        font-size: var(--sl-text-sm);
+        cursor: pointer;
+    }
+
+    .c360 button[aria-pressed='true'] {
+        border-color: var(--sl-color-accent);
+        background: var(--sl-color-accent-low);
+    }
+
+    .c360-hint {
+        margin-left: auto;
+        color: var(--sl-color-gray-3);
+        font-size: var(--sl-text-xs);
+    }
+
+    .c360-svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+    }
+
+    .c360-svg:active {
+        cursor: grabbing;
+    }
+
+    .c360-svg:focus-visible {
+        outline: 2px solid var(--sl-color-accent);
+        outline-offset: -2px;
+    }
+
+    .c360-panel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 0.75rem;
+        border-top: 1px solid var(--sl-color-gray-5);
+    }
+
+    .c360-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-content: flex-start;
+    }
+
+    .c360-list button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0;
+    }
+
+    .c360-list small {
+        color: var(--sl-color-gray-3);
+    }
+
+    .c360-swatch {
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 2px;
+        background: var(--c360-color);
+    }
+
+    .c360-edit {
+        display: grid;
+        flex: 1 1 22rem;
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+        margin: 0;
+        font-size: var(--sl-text-sm);
+    }
+
+    .c360-edit[hidden] {
+        display: none;
+    }
+
+    .c360-edit label {
+        display: grid;
+        grid-template-columns: 5.5rem 1fr 4rem;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        font-family: var(--__sl-font-mono);
+    }
+
+    .c360-edit output {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .c360-xml {
+        display: block;
+        margin: 0.25rem 0 0;
+        padding: 0.4rem 0.6rem;
+        overflow-x: auto;
+        white-space: pre;
+    }
+
+    .c360-reset {
+        justify-self: start;
+        margin: 0;
+    }
+
+    .c360-sim {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        gap: 1rem;
+        padding: 0.75rem;
+        border-top: 1px solid var(--sl-color-gray-5);
+        font-size: var(--sl-text-sm);
+    }
+
+    .c360-sim > * {
+        margin: 0;
+        align-self: start;
+    }
+
+    .c360-gazectl {
+        display: grid;
+        gap: 0.35rem;
+        align-content: start;
+    }
+
+    .c360-gazectl label {
+        display: grid;
+        grid-template-columns: 3.5rem 1fr 3rem;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+    }
+
+    .c360-gazectl output {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .c360-restart {
+        justify-self: start;
+        margin: 0.25rem 0 0;
+    }
+
+    :global(.sl-markdown-content) .c360-states {
+        display: table;
+        margin: 0;
+        font-size: var(--sl-text-sm);
+    }
+
+    .c360-states td,
+    .c360-states th {
+        padding: 0.2rem 0.5rem;
+    }
+
+    .c360-states td[data-ev] {
+        transition: background-color 0.4s;
+    }
+
+    .c360-states td.is-on {
+        color: var(--sl-color-white);
+        font-weight: 600;
+    }
+
+    .c360-states td.is-changed {
+        background: var(--sl-color-accent-low);
+    }
+
+    .c360-logbox {
+        display: grid;
+        align-content: start;
+        gap: 0.35rem;
+    }
+
+    :global(.sl-markdown-content) .c360-log {
+        margin: 0;
+        padding-left: 1.2rem;
+        color: var(--sl-color-gray-2);
+    }
+
+    :global(.sl-markdown-content) .c360-log :global(li + li) {
+        margin-top: 0.15rem;
+    }
+
+    .c360-log :global(li:last-child) {
+        color: var(--sl-color-white);
+    }
+
+    .c360 figcaption {
+        padding: 0 0.75rem 0.75rem;
+        color: var(--sl-color-gray-3);
+        font-size: var(--sl-text-sm);
+    }
+
+    .c360 :global(.c360-grid) {
+        fill: none;
+        stroke: var(--sl-color-gray-4);
+        stroke-width: 0.75;
+        opacity: 0.55;
+    }
+
+    .c360 :global(.c360-horizon) {
+        fill: none;
+        stroke: var(--sl-color-gray-2);
+        stroke-width: 1.5;
+    }
+
+    .c360 :global(.c360-label) {
+        fill: var(--sl-color-gray-2);
+        font-size: 13px;
+        text-anchor: middle;
+        pointer-events: none;
+    }
+
+    .c360 :global(.c360-quad) {
+        stroke-width: 1.5;
+        fill-opacity: 0.35;
+        cursor: pointer;
+    }
+
+    .c360 :global(.c360-quad.is-selected) {
+        stroke-width: 3.5;
+        fill-opacity: 0.6;
+    }
+
+    .c360 :global(.c360-name) {
+        fill: var(--sl-color-white);
+        font-size: 13px;
+        font-weight: 600;
+        text-anchor: middle;
+        pointer-events: none;
+        paint-order: stroke;
+        stroke: var(--sl-color-gray-7, var(--sl-color-gray-6));
+        stroke-width: 3px;
+    }
+
+    .c360 :global(.c360-user) {
+        fill: var(--sl-color-white);
+    }
+
+    .c360 :global(.c360-gaze) {
+        stroke: var(--sl-color-white);
+        stroke-width: 2;
+        marker-end: none;
+    }
+
+    .c360 :global(.c360-quad.is-idle) {
+        fill-opacity: 0.06;
+        stroke-dasharray: 5 4;
+        stroke-width: 1.25;
+    }
+
+    .c360 :global(.c360-name.is-idle) {
+        opacity: 0.55;
+        font-weight: 400;
+    }
+
+    .c360 :global(.c360-fov) {
+        fill: var(--sl-color-white);
+        fill-opacity: 0.07;
+        stroke: var(--sl-color-gray-2);
+        stroke-width: 1;
+        stroke-dasharray: 4 3;
+    }
+
+    .c360 :global(.c360-cross) {
+        stroke: var(--sl-color-gray-2);
+        stroke-width: 1;
+    }
+</style>
+
+<script>
+    type Vec = [number, number, number];
+
+    interface Regiao {
+        id: string;
+        polar: number;
+        azimuthal: number;
+        radius: number;
+        width: number;
+        height: number;
+        pin: 'environment' | 'camera';
+        zIndex?: number;
+        midias: string[];
+    }
+
+    interface Basis {
+        pos: Vec;
+        f: Vec;
+        r: Vec;
+        u: Vec;
+        focal: number;
+    }
+
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const W = 800;
+    const H = 440;
+    const NEAR = 0.05;
+    const RAD = Math.PI / 180;
+
+    const add = (a: Vec, b: Vec): Vec => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+    const sub = (a: Vec, b: Vec): Vec => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    const mul = (a: Vec, k: number): Vec => [a[0] * k, a[1] * k, a[2] * k];
+    const dot = (a: Vec, b: Vec) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+    // Rotations with the senses of the Guaraná player (Unity axes: x right,
+    // y up, z ahead): a positive elevation turns up, a positive yaw turns
+    // to the right.
+    function elev(v: Vec, deg: number): Vec {
+        const c = Math.cos(deg * RAD);
+        const s = Math.sin(deg * RAD);
+        return [v[0], v[1] * c + v[2] * s, -v[1] * s + v[2] * c];
+    }
+
+    function yaw(v: Vec, deg: number): Vec {
+        const c = Math.cos(deg * RAD);
+        const s = Math.sin(deg * RAD);
+        return [v[0] * c + v[2] * s, v[1], -v[0] * s + v[2] * c];
+    }
+
+    const turn = (v: Vec, pitch: number, heading: number) => yaw(elev(v, pitch), heading);
+
+    function frame(pitch: number, heading: number) {
+        return {
+            f: turn([0, 0, 1], pitch, heading),
+            r: turn([1, 0, 0], pitch, heading),
+            u: turn([0, 1, 0], pitch, heading),
+        };
+    }
+
+    function el(tag: string, attrs: Record<string, string | number>, parent: Element) {
+        const node = document.createElementNS(SVG_NS, tag);
+        for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
+        parent.appendChild(node);
+        return node;
+    }
+
+    function setup(fig: HTMLElement) {
+        interface Bind { component: string; role: string; interface?: string }
+        const data = JSON.parse(fig.dataset.cena360!) as {
+            regioes: Regiao[];
+            ceu: string[];
+            portas: string[];
+            elos: { id?: string; condicao: Bind; acoes: Bind[] }[];
+        };
+        const simular = fig.dataset.simular !== undefined;
+        const original = data.regioes.map((r) => ({ ...r }));
+        const regioes = data.regioes;
+        const svg = fig.querySelector('svg')!;
+        const edit = fig.querySelector<HTMLElement>('.c360-edit')!;
+        const xml = fig.querySelector<HTMLElement>('.c360-xml')!;
+        const colorOf = (id: string) => `var(--c360-c${regioes.findIndex((r) => r.id === id) % 5})`;
+
+        const state = {
+            view: 'fora' as 'fora' | 'usuario',
+            orbit: { pitch: -28, heading: 35 },
+            gaze: { pitch: 0, heading: 0 },
+            selected: undefined as string | undefined,
+        };
+
+        const sphere = () => Math.max(4, ...regioes.map((r) => r.radius)) + 1;
+
+        /** What the user sees: 100° wide, like a headset. */
+        function userCamera(): Basis {
+            const b = frame(state.gaze.pitch, state.gaze.heading);
+            return { pos: [0, 0, 0], ...b, focal: W / 2 / Math.tan(50 * RAD) };
+        }
+
+        function camera(): Basis {
+            if (state.view === 'usuario') return userCamera();
+            const b = frame(state.orbit.pitch, state.orbit.heading);
+            const d = sphere() * 2.9;
+            return { pos: mul(b.f, -d), ...b, focal: W * 0.62 };
+        }
+
+        function toCam(cam: Basis, p: Vec): Vec {
+            const v = sub(p, cam.pos);
+            return [dot(v, cam.r), dot(v, cam.u), dot(v, cam.f)];
+        }
+
+        const screen = (cam: Basis, c: Vec): [number, number] => [
+            W / 2 + (cam.focal * c[0]) / c[2],
+            H / 2 - (cam.focal * c[1]) / c[2],
+        ];
+
+        function clipSegment(a: Vec, b: Vec): [Vec, Vec] | undefined {
+            if (a[2] < NEAR && b[2] < NEAR) return undefined;
+            if (a[2] >= NEAR && b[2] >= NEAR) return [a, b];
+            const t = (NEAR - a[2]) / (b[2] - a[2]);
+            const m: Vec = add(a, mul(sub(b, a), t));
+            return a[2] < NEAR ? [m, b] : [a, m];
+        }
+
+        function clipPolygon(pts: Vec[]): Vec[] {
+            const out: Vec[] = [];
+            for (let i = 0; i < pts.length; i++) {
+                const a = pts[i];
+                const b = pts[(i + 1) % pts.length];
+                const ain = a[2] >= NEAR;
+                const bin = b[2] >= NEAR;
+                if (ain) out.push(a);
+                if (ain !== bin) {
+                    const t = (NEAR - a[2]) / (b[2] - a[2]);
+                    out.push(add(a, mul(sub(b, a), t)));
+                }
+            }
+            return out;
+        }
+
+        function polyline(cam: Basis, pts: Vec[], cls: string, parent: Element) {
+            let d = '';
+            for (let i = 0; i + 1 < pts.length; i++) {
+                const seg = clipSegment(toCam(cam, pts[i]), toCam(cam, pts[i + 1]));
+                if (!seg) continue;
+                const [x1, y1] = screen(cam, seg[0]);
+                const [x2, y2] = screen(cam, seg[1]);
+                d += `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`;
+            }
+            if (d) el('path', { d, class: cls }, parent);
+        }
+
+        const onSphere = (pitch: number, heading: number, r: number) => mul(turn([0, 0, 1], pitch, heading), r);
+
+        /** Center and axes of a region in the world. */
+        function placed(r: Regiao) {
+            let c = onSphere(r.polar, r.azimuthal, r.radius);
+            let right = turn([1, 0, 0], r.polar, r.azimuthal);
+            let up = turn([0, 1, 0], r.polar, r.azimuthal);
+            if (r.pin === 'camera') {
+                const g = state.gaze;
+                c = turn(c, g.pitch, g.heading);
+                right = turn(right, g.pitch, g.heading);
+                up = turn(up, g.pitch, g.heading);
+            }
+            return { c, right, up };
+        }
+
+        function corners(r: Regiao): Vec[] {
+            const { c, right, up } = placed(r);
+            const hw = mul(right, r.width / 2);
+            const hh = mul(up, r.height / 2);
+            return [add(add(c, hw), hh), add(sub(c, hw), hh), sub(sub(c, hw), hh), sub(add(c, hw), hh)];
+        }
+
+        /** Whether any part of the region is inside the user's field of view. */
+        function inView(r: Regiao): boolean {
+            const cam = userCamera();
+            const poly = clipPolygon(corners(r).map((p) => toCam(cam, p)));
+            if (poly.length < 3) return false;
+            const pts = poly.map((p) => screen(cam, p));
+            const xs = pts.map((p) => p[0]);
+            const ys = pts.map((p) => p[1]);
+            return Math.max(...xs) > 0 && Math.min(...xs) < W && Math.max(...ys) > 0 && Math.min(...ys) < H;
+        }
+
+        // -- simulation of the links ---------------------------------------------
+
+        const pres = new Map<string, boolean>();
+        const view = new Map<string, boolean>();
+        const changed = new Set<string>();
+        const log: string[] = [];
+        const regionOf = (m: string) => regioes.find((r) => r.midias.includes(m));
+
+        function note(text: string) {
+            log.push(text);
+            if (log.length > 8) log.splice(0, log.length - 8);
+        }
+
+        function fire(role: string, media: string, depth: number) {
+            if (depth > 20) return;
+            for (const l of data.elos) {
+                const c = l.condicao;
+                if (c.role !== role || c.component !== media || c.interface) continue;
+                for (const a of l.acoes) {
+                    note(`elo ${l.id ?? ''} → ${a.role} ${a.component}`);
+                    act(a.role, a.component, depth + 1);
+                }
+            }
+        }
+
+        function act(role: string, media: string, depth: number) {
+            if (role === 'start' && !pres.get(media)) {
+                pres.set(media, true);
+                changed.add(`${media}|pres`);
+                note(`${media} começa → onBegin`);
+                fire('onBegin', media, depth);
+                evalView(depth);
+            } else if ((role === 'stop' || role === 'abort') && pres.get(media)) {
+                pres.set(media, false);
+                changed.add(`${media}|pres`);
+                if (view.get(media)) {
+                    view.set(media, false);
+                    changed.add(`${media}|view`);
+                }
+                note(`${media} termina → ${role === 'stop' ? 'onEnd' : 'onAbort'}`);
+                fire(role === 'stop' ? 'onEnd' : 'onAbort', media, depth);
+            }
+        }
+
+        /** Raises view transitions of the media being presented. */
+        function evalView(depth = 0) {
+            if (!simular) return;
+            for (const r of regioes) {
+                for (const m of r.midias) {
+                    if (!pres.get(m)) continue;
+                    const now = inView(r);
+                    if (now === !!view.get(m)) continue;
+                    view.set(m, now);
+                    changed.add(`${m}|view`);
+                    note(now ? `${m} entra no campo de visão → onBeginView` : `${m} sai do campo de visão → onEndView`);
+                    fire(now ? 'onBeginView' : 'onEndView', m, depth);
+                }
+            }
+        }
+
+        function restart() {
+            pres.clear();
+            view.clear();
+            log.length = 0;
+            state.gaze = { pitch: 0, heading: 0 };
+            for (const m of data.portas) act('start', m, 0);
+            changed.clear();
+        }
+
+        function syncSim() {
+            if (!simular) return;
+            for (const row of fig.querySelectorAll<HTMLTableRowElement>('.c360-states tr[data-media]')) {
+                const m = row.dataset.media!;
+                const set = (ev: 'pres' | 'view', on: boolean | undefined, text: string) => {
+                    const td = row.querySelector<HTMLElement>(`[data-ev="${ev}"]`)!;
+                    td.textContent = text;
+                    td.classList.toggle('is-on', !!on);
+                    td.classList.toggle('is-changed', changed.has(`${m}|${ev}`));
+                };
+                set('pres', pres.get(m), pres.get(m) ? 'ocorrendo' : 'dormindo');
+                set('view', view.get(m), !pres.get(m) ? '—' : view.get(m) ? 'ocorrendo' : 'dormindo');
+            }
+            const ol = fig.querySelector('.c360-log')!;
+            ol.replaceChildren(...log.map((t) => Object.assign(document.createElement('li'), { textContent: t })));
+            for (const input of fig.querySelectorAll<HTMLInputElement>('input[data-gaze]')) {
+                const key = input.dataset.gaze as 'heading' | 'pitch';
+                input.value = String(Math.round(state.gaze[key]));
+                input.nextElementSibling!.textContent = `${Math.round(state.gaze[key])}°`;
+            }
+            changed.clear();
+        }
+
+        /** After any change of gaze or position: events, drawing, panel. */
+        function update() {
+            evalView();
+            draw();
+            syncSim();
+        }
+
+        function draw() {
+            svg.replaceChildren();
+            const cam = camera();
+            const S = sphere();
+            const grid = el('g', {}, svg);
+
+            for (let p = -60; p <= 60; p += 30) {
+                const pts: Vec[] = [];
+                for (let h = -180; h <= 180; h += 5) pts.push(onSphere(p, h, S));
+                polyline(cam, pts, p === 0 ? 'c360-horizon' : 'c360-grid', grid);
+            }
+            for (let h = -180; h < 180; h += 30) {
+                const pts: Vec[] = [];
+                for (let p = -85; p <= 85; p += 5) pts.push(onSphere(p, h, S));
+                polyline(cam, pts, 'c360-grid', grid);
+            }
+            for (const [h, txt] of [[0, 'frente · 0°'], [90, 'direita · 90°'], [180, 'atrás · 180°'], [-90, 'esquerda · −90°']] as const) {
+                const c = toCam(cam, onSphere(-4, h, S));
+                if (c[2] < NEAR) continue;
+                const [x, y] = screen(cam, c);
+                el('text', { x, y: y + 14, class: 'c360-label' }, grid).textContent = txt;
+            }
+            for (const [p, txt] of [[30, 'polar 30°'], [60, 'polar 60°']] as const) {
+                const h = state.view === 'usuario' ? state.gaze.heading : state.orbit.heading - 20;
+                const c = toCam(cam, onSphere(p, h, S));
+                if (c[2] < NEAR) continue;
+                const [x, y] = screen(cam, c);
+                el('text', { x, y: y - 4, class: 'c360-label' }, grid).textContent = txt;
+            }
+
+            type Item = { depth: number; paint: () => void };
+            const items: Item[] = [];
+
+            for (const r of regioes) {
+                const { c, right, up } = placed(r);
+                const hw = mul(right, r.width / 2);
+                const hh = mul(up, r.height / 2);
+                const corners: Vec[] = [
+                    add(add(c, hw), hh),
+                    add(sub(c, hw), hh),
+                    sub(sub(c, hw), hh),
+                    sub(add(c, hw), hh),
+                ].map((p) => toCam(cam, p));
+                const poly = clipPolygon(corners);
+                if (poly.length < 3) continue;
+                const center = toCam(cam, c);
+                items.push({
+                    depth: center[2],
+                    paint: () => {
+                        const color = colorOf(r.id);
+                        const idle = simular && !r.midias.some((m) => pres.get(m));
+                        const quad = el('polygon', {
+                            points: poly.map((p) => screen(cam, p).map((n) => n.toFixed(1)).join(',')).join(' '),
+                            class: `c360-quad${state.selected === r.id ? ' is-selected' : ''}${idle ? ' is-idle' : ''}`,
+                            fill: color,
+                            stroke: color,
+                            'data-region': r.id,
+                        }, svg);
+                        el('title', {}, quad).textContent = `${r.id}: ${r.midias.join(', ')}`;
+                        if (center[2] >= NEAR) {
+                            const [x, y] = screen(cam, center);
+                            el('text', { x, y: y + 4, class: `c360-name${idle ? ' is-idle' : ''}` }, svg).textContent = r.midias.join(', ') || r.id;
+                        }
+                    },
+                });
+            }
+
+            if (state.view === 'fora') {
+                // The user's field of view, as a frame at the sphere.
+                const u = userCamera();
+                const k = S * 0.95;
+                const tx = W / 2 / u.focal;
+                const ty = H / 2 / u.focal;
+                const frameAt = (x: number, y: number) => {
+                    const d = add(add(u.f, mul(u.r, x)), mul(u.u, y));
+                    return mul(d, k / Math.hypot(...d));
+                };
+                const fov = [frameAt(tx, ty), frameAt(-tx, ty), frameAt(-tx, -ty), frameAt(tx, -ty)];
+                const fovCam = clipPolygon(fov.map((p) => toCam(cam, p)));
+                const fovDepth = toCam(cam, mul(u.f, k))[2];
+                if (fovCam.length >= 3) {
+                    items.push({
+                        depth: fovDepth,
+                        paint: () => {
+                            el('polygon', {
+                                points: fovCam.map((p) => screen(cam, p).map((n) => n.toFixed(1)).join(',')).join(' '),
+                                class: 'c360-fov',
+                            }, svg);
+                        },
+                    });
+                }
+                const head = toCam(cam, [0, 0, 0]);
+                items.push({
+                    depth: head[2],
+                    paint: () => {
+                        const g = state.gaze;
+                        const tip = toCam(cam, mul(turn([0, 0, 1], g.pitch, g.heading), 2));
+                        const [x0, y0] = screen(cam, head);
+                        if (tip[2] >= NEAR) {
+                            const [x1, y1] = screen(cam, tip);
+                            el('line', { x1: x0, y1: y0, x2: x1, y2: y1, class: 'c360-gaze' }, svg);
+                        }
+                        el('circle', { cx: x0, cy: y0, r: Math.max(4, (cam.focal * 0.35) / head[2]), class: 'c360-user' }, svg);
+                        el('text', { x: x0, y: y0 - 12, class: 'c360-label' }, svg).textContent = 'usuário';
+                    },
+                });
+            } else {
+                el('path', { d: `M${W / 2 - 8} ${H / 2}h16M${W / 2} ${H / 2 - 8}v16`, class: 'c360-cross' }, svg);
+            }
+
+            items.sort((a, b) => b.depth - a.depth).forEach((i) => i.paint());
+        }
+
+        // -- selection and editing -------------------------------------------
+
+        const inputs = [...edit.querySelectorAll<HTMLInputElement>('input[data-attr]')];
+
+        function fmt(n: number) {
+            return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)));
+        }
+
+        function regionXml(r: Regiao) {
+            const extra = `${r.zIndex !== undefined ? ` zIndex="${r.zIndex}"` : ''}${r.pin === 'camera' ? ' pin="camera"' : ''}`;
+            return `<region id="${r.id}" polar="${fmt(r.polar)}d" azimuthal="${fmt(r.azimuthal)}d" width="${fmt(r.width)}m" height="${fmt(r.height)}m" radius="${fmt(r.radius)}m"${extra}/>`;
+        }
+
+        function syncPanel() {
+            for (const b of fig.querySelectorAll<HTMLButtonElement>('.c360-list button')) {
+                b.setAttribute('aria-pressed', String(b.dataset.region === state.selected));
+            }
+            const r = regioes.find((x) => x.id === state.selected);
+            edit.hidden = !r;
+            if (!r) return;
+            for (const input of inputs) {
+                const key = input.dataset.attr as 'polar' | 'azimuthal' | 'radius';
+                input.value = String(r[key]);
+                input.nextElementSibling!.textContent = `${fmt(r[key])}${key === 'radius' ? 'm' : 'd'}`;
+            }
+            xml.textContent = regionXml(r);
+        }
+
+        function select(id: string | undefined) {
+            state.selected = state.selected === id ? undefined : id;
+            syncPanel();
+            update();
+        }
+
+        for (const input of inputs) {
+            input.addEventListener('input', () => {
+                const r = regioes.find((x) => x.id === state.selected);
+                if (!r) return;
+                r[input.dataset.attr as 'polar' | 'azimuthal' | 'radius'] = Number(input.value);
+                syncPanel();
+                update();
+            });
+        }
+
+        fig.querySelector('.c360-reset')!.addEventListener('click', () => {
+            regioes.forEach((r, i) => Object.assign(r, original[i]));
+            syncPanel();
+            update();
+        });
+
+        for (const b of fig.querySelectorAll<HTMLButtonElement>('.c360-list button')) {
+            b.addEventListener('click', () => select(b.dataset.region));
+        }
+
+        for (const b of fig.querySelectorAll<HTMLButtonElement>('[data-view]')) {
+            b.addEventListener('click', () => {
+                state.view = b.dataset.view as 'fora' | 'usuario';
+                for (const o of fig.querySelectorAll('[data-view]')) {
+                    o.setAttribute('aria-pressed', String(o === b));
+                }
+                update();
+            });
+        }
+
+        // -- dragging ----------------------------------------------------------
+
+        const clampPitch = (p: number) => Math.max(-85, Math.min(85, p));
+
+        function rotate(dx: number, dy: number) {
+            if (state.view === 'usuario') {
+                state.gaze.heading -= dx * 0.25;
+                state.gaze.pitch = clampPitch(state.gaze.pitch + dy * 0.25);
+            } else {
+                state.orbit.heading += dx * 0.4;
+                state.orbit.pitch = clampPitch(state.orbit.pitch - dy * 0.4);
+            }
+            update();
+        }
+
+        let drag: { x: number; y: number; moved: number; id: number } | undefined;
+        svg.addEventListener('pointerdown', (e) => {
+            drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId };
+            svg.setPointerCapture(e.pointerId);
+        });
+        svg.addEventListener('pointermove', (e) => {
+            if (!drag || drag.id !== e.pointerId) return;
+            const scale = W / svg.getBoundingClientRect().width;
+            const dx = (e.clientX - drag.x) * scale;
+            const dy = (e.clientY - drag.y) * scale;
+            drag.moved += Math.abs(dx) + Math.abs(dy);
+            drag.x = e.clientX;
+            drag.y = e.clientY;
+            rotate(dx, dy);
+        });
+        svg.addEventListener('pointerup', (e) => {
+            if (!drag) return;
+            const click = drag.moved < 5;
+            drag = undefined;
+            if (!click) return;
+            const hit = document.elementsFromPoint(e.clientX, e.clientY)
+                .find((n) => n instanceof SVGElement && n.dataset.region) as SVGElement | undefined;
+            if (hit) select(hit.dataset.region);
+        });
+        svg.addEventListener('keydown', (e) => {
+            const step: Record<string, [number, number]> = {
+                ArrowLeft: [-20, 0], ArrowRight: [20, 0], ArrowUp: [0, -20], ArrowDown: [0, 20],
+            };
+            const s = step[e.key];
+            if (!s) return;
+            e.preventDefault();
+            // Dragging pulls the world; the arrows turn the gaze toward them.
+            const k = state.view === 'usuario' ? -1 : 1;
+            rotate(s[0] * k, s[1] * k);
+        });
+
+        for (const input of fig.querySelectorAll<HTMLInputElement>('input[data-gaze]')) {
+            input.addEventListener('input', () => {
+                state.gaze[input.dataset.gaze as 'heading' | 'pitch'] = Number(input.value);
+                update();
+            });
+        }
+        fig.querySelector('.c360-restart')?.addEventListener('click', () => {
+            restart();
+            draw();
+            syncSim();
+        });
+
+        if (simular) restart();
+        syncPanel();
+        update();
+    }
+
+    document.querySelectorAll<HTMLElement>('[data-cena360]').forEach(setup);
+</script>

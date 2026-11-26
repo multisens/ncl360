@@ -1,0 +1,548 @@
+---
+// Interactive figure of how the TV application (exemplos/aplicacao-tv.ncl)
+// and the scene in the headset (exemplos/olhar-para-revelar.ncl360) talk
+// through the anchors of the application/x-ncl360 media. It plays, step by
+// step, what happens on each side and the messages between them.
+import { exemplo } from '../lib/exemplos';
+
+const tv = exemplo('aplicacao-tv.ncl').source;
+const cena = exemplo('olhar-para-revelar.ncl360').source;
+
+// The figure names these ids; fail the build if an example stops having them.
+const exigidos: [string, string, RegExp][] = [
+    ['aplicacao-tv.ncl', tv, /<area id="aCartao" label="cartao"\/>/],
+    ['aplicacao-tv.ncl', tv, /<media id="aviso"/],
+    ['aplicacao-tv.ncl', tv, /<link id="lAvisoInicio"/],
+    ['aplicacao-tv.ncl', tv, /<link id="lAvisoFim"/],
+    ['olhar-para-revelar.ncl360', cena, /<media id="marca"/],
+    ['olhar-para-revelar.ncl360', cena, /<media id="cartao"/],
+    ['olhar-para-revelar.ncl360', cena, /<link id="lMostrarCartao">/],
+    ['olhar-para-revelar.ncl360', cena, /<link id="lEsconderCartao">/],
+];
+for (const [file, source, re] of exigidos) {
+    if (!re.test(source)) throw new Error(`tv-oculos.astro: exemplos/${file} no longer matches ${re}`);
+}
+---
+
+<figure class="tvo" data-tvo>
+    <div class="tvo-cols">
+        <section class="tvo-side">
+            <div class="tvo-head">TV <code>aplicacao-tv.ncl</code></div>
+            <div class="tvo-screen">
+                <span class="tvo-program">programa</span>
+                <span class="tvo-aviso" data-show="aviso">aviso</span>
+            </div>
+            <ul class="tvo-states">
+                <li><code>cena</code> <small>application/x-ncl360</small><span class="is-on">ocorrendo</span></li>
+                <li class="tvo-anchor"><code>aCartao</code> <small>label="cartao"</small><span data-state="aCartao"></span></li>
+                <li><code>aviso</code><span data-state="aviso"></span></li>
+            </ul>
+            <button type="button" data-act="tv"></button>
+        </section>
+
+        <div class="tvo-wire" aria-hidden="true">
+            <div class="tvo-arrow tvo-right">ações</div>
+            <div class="tvo-arrow tvo-left">notificações</div>
+            <div class="tvo-msg" data-msg></div>
+        </div>
+
+        <section class="tvo-side">
+            <div class="tvo-head">Óculos <code>olhar-para-revelar.ncl360</code></div>
+            <div class="tvo-visor" data-looking="false">
+                <span class="tvo-fov">campo de visão</span>
+                <span class="tvo-marca">marca</span>
+                <span class="tvo-cartao" data-show="cartao">cartao</span>
+            </div>
+            <ul class="tvo-states">
+                <li><code>marca</code> <small>visualização</small><span data-state="marcaView"></span></li>
+                <li><code>cartao</code><span data-state="cartao"></span></li>
+            </ul>
+            <button type="button" data-act="look"></button>
+        </section>
+    </div>
+
+    <ol class="tvo-steps" aria-live="polite"></ol>
+    <div class="tvo-foot">
+        <button type="button" data-act="reset">Reiniciar</button>
+    </div>
+    <figcaption>
+        Use os botões de cada lado. Os passos aparecem na ordem em que acontecem: do óculos para a TV
+        vão notificações de mudança de estado; da TV para o óculos, ações sobre as âncoras.
+    </figcaption>
+</figure>
+
+<style>
+    .tvo {
+        margin: 1.5rem 0;
+        padding: 0.75rem;
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.5rem;
+        font-size: var(--sl-text-sm);
+    }
+
+    .tvo-cols {
+        display: grid;
+        grid-template-columns: 1fr minmax(7rem, 0.55fr) 1fr;
+        gap: 0.75rem;
+        align-items: stretch;
+    }
+
+    .tvo-cols > *,
+    .tvo > * {
+        margin: 0;
+    }
+
+    @media (max-width: 45rem) {
+        .tvo-cols {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .tvo-side {
+        display: grid;
+        align-content: start;
+        gap: 0.6rem;
+        padding: 0.6rem;
+        border: 1px solid var(--sl-color-gray-5);
+        border-radius: 0.4rem;
+    }
+
+    .tvo-side > * {
+        margin: 0;
+    }
+
+    .tvo-head {
+        font-weight: 600;
+        color: var(--sl-color-white);
+    }
+
+    .tvo-head code {
+        font-weight: 400;
+    }
+
+    /* TV screen, with the aviso where rgAviso puts it. */
+    .tvo-screen {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        border-radius: 0.3rem;
+        background: var(--sl-color-gray-6);
+    }
+
+    .tvo-program {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: var(--sl-color-gray-3);
+    }
+
+    .tvo-aviso {
+        position: absolute;
+        left: 5%;
+        top: 80%;
+        width: 40%;
+        height: 15%;
+        display: grid;
+        place-items: center;
+        border-radius: 0.2rem;
+        background: #f59e0b;
+        color: #111;
+        font-weight: 600;
+        font-size: var(--sl-text-xs);
+    }
+
+    /* Headset view: the marca moves into the field of view when looked at. */
+    .tvo-visor {
+        position: relative;
+        height: 7.5rem;
+        overflow: hidden;
+        border-radius: 3rem;
+        background: var(--sl-color-gray-6);
+    }
+
+    .tvo-fov {
+        position: absolute;
+        inset: 0.5rem 20%;
+        display: grid;
+        place-items: end center;
+        padding-bottom: 0.2rem;
+        border: 1px dashed var(--sl-color-gray-3);
+        border-radius: 0.4rem;
+        color: var(--sl-color-gray-3);
+        font-size: var(--sl-text-xs);
+    }
+
+    .tvo-marca,
+    .tvo-cartao {
+        position: absolute;
+        top: 1.8rem;
+        padding: 0.3rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: 600;
+        font-size: var(--sl-text-xs);
+        transition: left 0.5s ease, opacity 0.3s;
+    }
+
+    .tvo-marca {
+        left: 2%;
+        background: #3b82f6;
+        color: #fff;
+        opacity: 0.45;
+    }
+
+    .tvo-visor[data-looking='true'] .tvo-marca {
+        left: 32%;
+        opacity: 1;
+    }
+
+    .tvo-cartao {
+        left: 56%;
+        background: #10b981;
+        color: #fff;
+    }
+
+    [data-show][data-off] {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    .tvo-states {
+        display: grid;
+        gap: 0.2rem;
+        padding: 0;
+        list-style: none;
+    }
+
+    :global(.sl-markdown-content) .tvo-states li + li {
+        margin-top: 0;
+    }
+
+    .tvo-states li {
+        display: flex;
+        gap: 0.4rem;
+        align-items: baseline;
+    }
+
+    .tvo-states small {
+        color: var(--sl-color-gray-3);
+    }
+
+    .tvo-anchor {
+        padding-left: 1rem;
+    }
+
+    .tvo-states span {
+        margin-left: auto;
+        padding: 0 0.4rem;
+        border-radius: 0.2rem;
+        color: var(--sl-color-gray-3);
+        transition: background-color 0.4s;
+    }
+
+    .tvo-states span.is-on {
+        color: var(--sl-color-white);
+        font-weight: 600;
+    }
+
+    .tvo-states span.is-changed {
+        background: var(--sl-color-accent-low);
+    }
+
+    .tvo button {
+        justify-self: start;
+        padding: 0.25rem 0.75rem;
+        border: 1px solid var(--sl-color-accent);
+        border-radius: 999px;
+        background: var(--sl-color-accent-low);
+        color: var(--sl-color-white);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .tvo button:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
+
+    .tvo-wire {
+        position: relative;
+        display: grid;
+        align-content: center;
+        gap: 0.6rem;
+        color: var(--sl-color-gray-3);
+        font-size: var(--sl-text-xs);
+        text-align: center;
+    }
+
+    .tvo-wire > * {
+        margin: 0;
+    }
+
+    .tvo-arrow {
+        position: relative;
+        padding: 0.2rem 0;
+        border-bottom: 1.5px solid var(--sl-color-gray-4);
+    }
+
+    .tvo-arrow::after {
+        content: '';
+        position: absolute;
+        bottom: -5px;
+        border: 4.5px solid transparent;
+    }
+
+    .tvo-right::after {
+        right: -4px;
+        border-left: 7px solid var(--sl-color-gray-4);
+    }
+
+    .tvo-left::after {
+        left: -4px;
+        border-right: 7px solid var(--sl-color-gray-4);
+    }
+
+    .tvo-msg {
+        min-height: 3.2rem;
+        padding: 0.3rem;
+        border-radius: 0.3rem;
+        color: var(--sl-color-white);
+    }
+
+    .tvo-msg:not(:empty) {
+        background: var(--sl-color-accent-low);
+        animation: tvo-in 0.5s ease;
+    }
+
+    .tvo-msg[data-dir='left']:not(:empty) {
+        animation-name: tvo-in-left;
+    }
+
+    @keyframes tvo-in {
+        from {
+            transform: translateX(-40%);
+            opacity: 0;
+        }
+    }
+
+    @keyframes tvo-in-left {
+        from {
+            transform: translateX(40%);
+            opacity: 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .tvo-msg:not(:empty),
+        .tvo-marca,
+        .tvo-cartao {
+            animation: none;
+            transition: none;
+        }
+    }
+
+    :global(.sl-markdown-content) .tvo-steps {
+        min-height: 2rem;
+        margin: 0.75rem 0 0;
+        padding-left: 1.4rem;
+    }
+
+    :global(.sl-markdown-content) .tvo-steps :global(li + li) {
+        margin-top: 0.2rem;
+    }
+
+    .tvo-steps :global(.tvo-where) {
+        display: inline-block;
+        min-width: 5.5rem;
+        color: var(--sl-color-gray-3);
+    }
+
+    .tvo-foot {
+        margin-top: 0.5rem;
+    }
+
+    .tvo figcaption {
+        margin-top: 0.5rem;
+        color: var(--sl-color-gray-3);
+    }
+</style>
+
+<script>
+    interface State {
+        looking: boolean;
+        marcaView: boolean;
+        cartao: boolean;
+        aCartao: boolean;
+        aviso: boolean;
+    }
+
+    type Where = 'óculos' | 'TV' | 'óculos → TV' | 'TV → óculos';
+    interface Step {
+        where: Where;
+        text: string;
+        apply?: (s: State) => void;
+    }
+
+    const STEP_MS = 700;
+
+    function initial(): State {
+        return { looking: false, marcaView: false, cartao: false, aCartao: false, aviso: false };
+    }
+
+    // What the scene and the application do after cartao starts or stops in
+    // the headset: the notification, the anchor, and the TV links.
+    function notify(started: boolean): Step[] {
+        return [
+            {
+                where: 'óculos → TV',
+                text: `notificação: a apresentação de cartao ${started ? 'começou' : 'terminou'}`,
+            },
+            {
+                where: 'TV',
+                text: `a âncora aCartao passa a ${started ? 'ocorrendo' : 'dormindo'}: ${started ? 'onBegin' : 'onEnd'}`,
+                apply: (s) => (s.aCartao = started),
+            },
+            {
+                where: 'TV',
+                text: `o elo ${started ? 'lAvisoInicio' : 'lAvisoFim'} ${started ? 'inicia' : 'termina'} aviso`,
+                apply: (s) => (s.aviso = started),
+            },
+        ];
+    }
+
+    function look(s: State): Step[] {
+        const steps: Step[] = [
+            {
+                where: 'óculos',
+                text: 'a marca entra no campo de visão: onBeginView',
+                apply: (x) => {
+                    x.looking = true;
+                    x.marcaView = true;
+                },
+            },
+        ];
+        if (!s.cartao) {
+            steps.push({
+                where: 'óculos',
+                text: 'o elo lMostrarCartao inicia cartao: onBegin',
+                apply: (x) => (x.cartao = true),
+            }, ...notify(true));
+        } else {
+            steps.push({ where: 'óculos', text: 'cartao já está ocorrendo: o start não muda nada' });
+        }
+        return steps;
+    }
+
+    function lookAway(s: State): Step[] {
+        const steps: Step[] = [
+            {
+                where: 'óculos',
+                text: 'a marca sai do campo de visão: onEndView',
+                apply: (x) => {
+                    x.looking = false;
+                    x.marcaView = false;
+                },
+            },
+        ];
+        if (s.cartao) {
+            steps.push({
+                where: 'óculos',
+                text: 'o elo lEsconderCartao termina cartao: onEnd',
+                apply: (x) => (x.cartao = false),
+            }, ...notify(false));
+        } else {
+            steps.push({ where: 'óculos', text: 'cartao já está dormindo: o stop não muda nada' });
+        }
+        return steps;
+    }
+
+    function tvAction(s: State): Step[] {
+        const role = s.aCartao ? 'stop' : 'start';
+        const started = role === 'start';
+        return [
+            { where: 'TV', text: `a aplicação executa ${role} na âncora aCartao` },
+            { where: 'TV → óculos', text: `ação: ${role} em cartao` },
+            {
+                where: 'óculos',
+                text: `cartao ${started ? 'começa' : 'termina'}: ${started ? 'onBegin' : 'onEnd'}`,
+                apply: (x) => (x.cartao = started),
+            },
+            ...notify(started),
+            ...(s.marcaView && !started
+                ? [{ where: 'óculos' as Where, text: 'a marca continua em vista: cartao só volta quando o olhar sair e entrar de novo' }]
+                : []),
+        ];
+    }
+
+    function setup(fig: HTMLElement) {
+        let state = initial();
+        let busy = false;
+        let timers: number[] = [];
+        const changed = new Set<keyof State>();
+        const steps = fig.querySelector('.tvo-steps')!;
+        const msg = fig.querySelector<HTMLElement>('[data-msg]')!;
+        const lookBtn = fig.querySelector<HTMLButtonElement>('[data-act="look"]')!;
+        const tvBtn = fig.querySelector<HTMLButtonElement>('[data-act="tv"]')!;
+
+        function render() {
+            for (const span of fig.querySelectorAll<HTMLElement>('[data-state]')) {
+                const key = span.dataset.state as keyof State;
+                span.textContent = state[key] ? 'ocorrendo' : 'dormindo';
+                span.classList.toggle('is-on', state[key]);
+                span.classList.toggle('is-changed', changed.has(key));
+            }
+            for (const node of fig.querySelectorAll<HTMLElement>('[data-show]')) {
+                node.toggleAttribute('data-off', !state[node.dataset.show as keyof State]);
+            }
+            fig.querySelector('.tvo-visor')!.setAttribute('data-looking', String(state.looking));
+            lookBtn.textContent = state.looking ? 'Desviar o olhar da marca' : 'Olhar para a marca';
+            tvBtn.textContent = `Aplicação: ${state.aCartao ? 'stop' : 'start'} em aCartao`;
+            lookBtn.disabled = busy;
+            tvBtn.disabled = busy;
+        }
+
+        function play(list: Step[]) {
+            busy = true;
+            steps.replaceChildren();
+            msg.textContent = '';
+            render();
+            timers = list.map((step, i) =>
+                window.setTimeout(() => {
+                    changed.clear();
+                    if (step.apply) {
+                        const before = { ...state };
+                        step.apply(state);
+                        for (const k of Object.keys(state) as (keyof State)[]) if (before[k] !== state[k]) changed.add(k);
+                    }
+                    const li = document.createElement('li');
+                    const where = Object.assign(document.createElement('span'), { className: 'tvo-where', textContent: step.where });
+                    li.append(where, step.text);
+                    steps.append(li);
+                    if (step.where.includes('→')) {
+                        msg.dataset.dir = step.where.startsWith('óculos') ? 'left' : 'right';
+                        msg.textContent = '';
+                        void msg.offsetWidth;
+                        msg.textContent = step.text;
+                    }
+                    if (i === list.length - 1) busy = false;
+                    render();
+                }, i * STEP_MS),
+            );
+        }
+
+        lookBtn.addEventListener('click', () => play(state.looking ? lookAway(state) : look(state)));
+        tvBtn.addEventListener('click', () => play(tvAction(state)));
+        fig.querySelector('[data-act="reset"]')!.addEventListener('click', () => {
+            timers.forEach((t) => clearTimeout(t));
+            busy = false;
+            state = initial();
+            changed.clear();
+            steps.replaceChildren();
+            msg.textContent = '';
+            render();
+        });
+
+        render();
+    }
+
+    document.querySelectorAll<HTMLElement>('[data-tvo]').forEach(setup);
+</script>

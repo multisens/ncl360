@@ -1,0 +1,22 @@
+---
+// An example file of exemplos/, with highlighting and a download link.
+import { Code } from '@astrojs/starlight/components';
+import { exemplo } from '../lib/exemplos';
+import { url } from '../lib/inline';
+
+interface Props {
+    arquivo: string;
+    /** Lines to highlight, in Expressive Code syntax, e.g. "12-15". */
+    marcar?: string;
+}
+
+const { arquivo, marcar } = Astro.props;
+const { source } = exemplo(arquivo);
+const mark = marcar ? marcar.split(',').map((r) => {
+    const [a, b] = r.split('-').map(Number);
+    return b ? { range: `${a}-${b}` } : { range: `${a}` };
+}) : undefined;
+---
+
+<Code code={source} lang="xml" title={`exemplos/${arquivo}`} mark={mark} />
+<p><a href={url(`/exemplos/${arquivo}`)} download={arquivo}>Baixar {arquivo}</a></p>

@@ -1,0 +1,51 @@
+---
+title: Olhar para revelar
+description: Um cartão que aparece enquanto o usuário olha para um objeto da cena, com onBeginView e onEndView.
+sidebar:
+  order: 3
+---
+
+import Exemplo from '../../../components/exemplo.astro';
+import Cena360 from '../../../components/cena-360.astro';
+
+O exibidor do óculos sabe para onde o usuário está olhando. Os papéis `onBeginView` e `onEndView`
+acontecem quando uma mídia entra e sai do campo de visão, e a cena pode reagir a isso.
+
+## O evento de visualização
+
+Além da apresentação, cada mídia da cena tem um evento de visualização (*view*), que segue a mesma
+máquina de estados dos eventos do NCL:
+
+| Transição | Papel | Quando |
+|---|---|---|
+| dormindo → ocorrendo | `onBeginView` | a mídia entra no campo de visão do usuário |
+| ocorrendo → dormindo | `onEndView` | a mídia sai do campo de visão |
+
+Na cena abaixo, a marca começa atrás do usuário. Gire o olhar até ela entrar no campo de visão e veja
+o elo iniciar o cartão; desvie o olhar e o cartão termina.
+
+<Cena360 arquivo="olhar-para-revelar.ncl360" simular />
+
+:::note
+No exibidor Guaraná, a visualização só é verificada enquanto a mídia está sendo apresentada, e a mídia
+está no campo de visão enquanto qualquer parte dela aparece na tela do óculos. A simulação usa as
+mesmas regras, com um campo de visão de 100° na horizontal.
+:::
+
+## O código
+
+<Exemplo arquivo="olhar-para-revelar.ncl360" marcar="20-27" />
+
+### O que cada parte faz
+
+- A marca começa com a cena, pela porta `pMarca`.
+- Quando a marca entra no campo de visão, o elo `lMostrarCartao` inicia o cartão.
+- Quando ela sai, `lEsconderCartao` o termina.
+
+Uma aplicação da TV pode acompanhar esse cartão pela âncora correspondente: veja
+[Cena numa aplicação da TV](/ncl360/integracao-ncl/).
+
+## Referências
+
+- ABNT NBR 25608 — TV 3.0 — Application coding, Seção A.3.21.3 (Tabela A.35) e Seção A.3.21.4.
+- Exibidor Guaraná (MultiSenS), detecção do evento de visualização (`Player.CheckView`).

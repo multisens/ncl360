@@ -1,0 +1,26 @@
+---
+title: Primeira cena
+description: A menor cena NCL360 válida — um vídeo 360° em volta do usuário.
+sidebar:
+  order: 1
+---
+
+import Exemplo from '../../../components/exemplo.astro';
+
+A menor cena possível: um vídeo 360° que ocupa o ambiente inteiro e começa junto com a cena.
+
+<Exemplo arquivo="primeira-cena.ncl360" />
+
+## O que cada parte faz
+
+- O descritor `dsCeu` usa a região predefinida `default.sky`, que põe a mídia em volta do usuário, e diz
+  que o vídeo está em projeção `equirectangular`.
+- A mídia `video360` aponta para esse descritor.
+- A porta `pVideo` faz o vídeo começar quando a cena começa. Sem ela, nada seria apresentado.
+
+O `<head>` precisa de pelo menos um `<descriptor>` e o `<body>`, de pelo menos uma `<media>`: esta é a
+estrutura mínima que o schema aceita.
+
+## Referências
+
+- ABNT NBR 25608 — TV 3.0 — Application coding, Seção A.3.21.4.
