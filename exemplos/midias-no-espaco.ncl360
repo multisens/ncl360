@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Vídeo 360° com mídias 2D posicionadas no espaço e uma marca presa à câmera. -->
+<ncl360 id="midiasNoEspaco" xmlns="http://www.ncl.org.br/NCL360/NCL360Profile">
+    <head>
+        <region id="rgPainel" polar="15d" azimuthal="-105d" width="3.2m" height="2m" radius="8m"/>
+        <region id="rgFoto" polar="28d" azimuthal="90d" width="1.5m" height="1m" radius="6m" zIndex="1"/>
+        <region id="rgMarca" polar="-20d" azimuthal="25d" width="0.3m" height="0.3m" radius="2m" pin="camera"/>
+
+        <descriptor id="dsCeu" region="default.sky" projection="equirectangular" volume="1"/>
+        <descriptor id="dsPainel" region="rgPainel" volume="0"/>
+        <descriptor id="dsFoto" region="rgFoto"/>
+        <descriptor id="dsMarca" region="rgMarca" dur="20"/>
+    </head>
+    <body>
+        <port id="pVideo" component="video360"/>
+        <port id="pMarca" component="marca"/>
+
+        <media id="video360" src="media/palacio360.mp4" descriptor="dsCeu">
+            <area id="trecho1" begin="30s" end="90s"/>
+            <area id="trecho2" begin="120s" end="180s"/>
+        </media>
+        <media id="painel" src="media/palacio2D.mp4" descriptor="dsPainel"/>
+        <media id="fotoDia" src="media/dia.jpg" descriptor="dsFoto"/>
+        <media id="fotoNoite" src="media/noite.jpg" descriptor="dsFoto"/>
+        <media id="marca" src="media/logo.png" descriptor="dsMarca"/>
+
+        <!-- O painel começa junto com o vídeo 360°. -->
+        <link id="lPainel">
+            <bind component="video360" role="onBegin"/>
+            <bind component="painel" role="start"/>
+        </link>
+
+        <!-- Cada foto aparece durante um trecho do vídeo 360°. -->
+        <link id="lFotoDiaInicio">
+            <bind component="video360" interface="trecho1" role="onBegin"/>
+            <bind component="fotoDia" role="start"/>
+        </link>
+        <link id="lFotoDiaFim">
+            <bind component="video360" interface="trecho1" role="onEnd"/>
+            <bind component="fotoDia" role="stop"/>
+        </link>
+        <link id="lFotoNoiteInicio">
+            <bind component="video360" interface="trecho2" role="onBegin"/>
+            <bind component="fotoNoite" role="start"/>
+        </link>
+        <link id="lFotoNoiteFim">
+            <bind component="video360" interface="trecho2" role="onEnd"/>
+            <bind component="fotoNoite" role="stop"/>
+        </link>
+    </body>
+</ncl360>

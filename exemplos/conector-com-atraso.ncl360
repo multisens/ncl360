@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Um conector próprio: inicia uma mídia algum tempo depois de outra começar. -->
+<ncl360 id="conectorComAtraso" xmlns="http://www.ncl.org.br/NCL360/NCL360Profile">
+    <head>
+        <region id="rgPainel" polar="15d" azimuthal="-105d" width="3.2m" height="2m" radius="8m"/>
+
+        <descriptor id="dsCeu" region="default.sky" projection="equirectangular" volume="1"/>
+        <descriptor id="dsPainel" region="rgPainel" volume="0"/>
+
+        <causalConnector id="onBeginStartDelay">
+            <connectorParam name="atraso"/>
+            <simpleCondition role="onBegin"/>
+            <simpleAction role="start" delay="$atraso" max="unbounded"/>
+        </causalConnector>
+    </head>
+    <body>
+        <port id="pVideo" component="video360"/>
+
+        <media id="video360" src="media/palacio360.mp4" descriptor="dsCeu"/>
+        <media id="painel" src="media/palacio2D.mp4" descriptor="dsPainel"/>
+
+        <!-- O painel começa 5 s depois do vídeo 360°. -->
+        <link id="lPainel" xconnector="onBeginStartDelay">
+            <bind component="video360" role="onBegin"/>
+            <bind component="painel" role="start">
+                <bindParam name="atraso" value="5s"/>
+            </bind>
+        </link>
+    </body>
+</ncl360>

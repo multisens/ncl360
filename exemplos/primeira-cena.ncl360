@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A menor cena possível: um vídeo 360° em volta do usuário. -->
+<ncl360 id="primeiraCena" xmlns="http://www.ncl.org.br/NCL360/NCL360Profile">
+    <head>
+        <descriptor id="dsCeu" region="default.sky" projection="equirectangular" volume="1"/>
+    </head>
+    <body>
+        <port id="pVideo" component="video360"/>
+        <media id="video360" src="media/praia360.mp4" descriptor="dsCeu"/>
+    </body>
+</ncl360>

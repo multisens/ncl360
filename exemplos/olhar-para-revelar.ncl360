@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Um cartão aparece enquanto o usuário olha para a marca. -->
+<ncl360 id="olharParaRevelar" xmlns="http://www.ncl.org.br/NCL360/NCL360Profile">
+    <head>
+        <region id="rgMarca" polar="5d" azimuthal="180d" width="0.5m" height="0.6m" radius="10m"/>
+        <region id="rgCartao" polar="10d" azimuthal="160d" width="1m" height="1m" radius="2m"/>
+
+        <descriptor id="dsCeu" region="default.sky" projection="equirectangular" volume="1"/>
+        <descriptor id="dsMarca" region="rgMarca"/>
+        <descriptor id="dsCartao" region="rgCartao"/>
+    </head>
+    <body>
+        <port id="pVideo" component="video360"/>
+        <port id="pMarca" component="marca"/>
+
+        <media id="video360" src="media/mar360.mp4" descriptor="dsCeu"/>
+        <media id="marca" src="media/logo.png" descriptor="dsMarca"/>
+        <media id="cartao" src="media/cartao.png" descriptor="dsCartao"/>
+
+        <link id="lMostrarCartao">
+            <bind component="marca" role="onBeginView"/>
+            <bind component="cartao" role="start"/>
+        </link>
+        <link id="lEsconderCartao">
+            <bind component="marca" role="onEndView"/>
+            <bind component="cartao" role="stop"/>
+        </link>
+    </body>
+</ncl360>
